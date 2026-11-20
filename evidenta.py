@@ -43,7 +43,7 @@ class App:
         bbox=ImageChops.difference(im.convert('RGB'),Image.new('RGB',im.size,'white')).getbbox()
         if bbox:
             im=im.crop(bbox)
-        im.thumbnail((250,110))
+        im.thumbnail((250,85))
         self.logo=ImageTk.PhotoImage(im)
         tk.Label(logo_frame,image=self.logo,bg=WHITE).pack()
         tk.Label(logo_frame,text='COMPANY',font=('Segoe UI',12,'bold'),fg=BLUE,bg=WHITE).pack(pady=(0,0),anchor='center')
