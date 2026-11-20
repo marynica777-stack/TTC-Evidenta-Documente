@@ -89,7 +89,7 @@ class App:
     scroll_x=ttk.Scrollbar(self.tree.master,orient='horizontal',command=self.tree.xview)
     self.tree.configure(xscrollcommand=scroll_x.set)
     scroll_x.pack(side='bottom',fill='x',padx=10)
-     self.tree.pack(fill='both',expand=True,padx=10,pady=8);self.tree.bind('<<TreeviewSelect>>',self.select)
+    self.tree.pack(fill='both',expand=True,padx=10,pady=8);self.tree.bind('<<TreeviewSelect>>',self.select)
     self.tree.tag_configure('expired',background='#ffc5c5');self.tree.tag_configure('soon',background='#ffe0b2');self.tree.tag_configure('later',background='#dcefdc')
     tk.Label(self.root,text='TTC | Date salvate local. Exportă periodic o copie CSV pentru backup.',font=('Segoe UI',9),bg=BG,fg=BLUE).pack(pady=5)
  def set_status_filter(self,key):
