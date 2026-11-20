@@ -90,6 +90,7 @@ class App:
     self.tree.configure(xscrollcommand=scroll_x.set)
     scroll_x.pack(side='bottom',fill='x',padx=10)
     self.tree.pack(fill='both',expand=True,padx=10,pady=8);self.tree.bind('<<TreeviewSelect>>',self.select)
+    self.tree.bind('<Double-1>',self.show_observatii)
     self.tree.tag_configure('expired',background='#ffc5c5');self.tree.tag_configure('soon',background='#ffe0b2');self.tree.tag_configure('later',background='#dcefdc')
     tk.Label(self.root,text='TTC | Date salvate local. Exportă periodic o copie CSV pentru backup.',font=('Segoe UI',9),bg=BG,fg=BLUE).pack(pady=5)
  def set_status_filter(self,key):
@@ -148,6 +149,43 @@ class App:
     self.clear()
     self.root.after(100, lambda: self.nume_entry.focus_force())
     self.refresh()
+ def show_observatii(self,event=None):
+        selectie=self.tree.selection()
+        if not selectie:
+            return
+
+        valori=self.tree.item(selectie[0],'values')
+        observatii=valori[-1]
+
+        fereastra=tk.Toplevel(self.root)
+        fereastra.title('TTC | Observații')
+        fereastra.geometry('650x400')
+        fereastra.transient(self.root)
+
+        ttk.Label(
+            fereastra,
+            text='OBSERVAȚII COMPLETE',
+            font=('Segoe UI',14,'bold')
+        ).pack(pady=10)
+
+        zona=ttk.Frame(fereastra)
+        zona.pack(fill='both',expand=True,padx=15,pady=10)
+
+        text=tk.Text(zona,wrap='word',font=('Segoe UI',11))
+        bara=ttk.Scrollbar(zona,orient='vertical',command=text.yview)
+        text.configure(yscrollcommand=bara.set)
+
+        bara.pack(side='right',fill='y')
+        text.pack(side='left',fill='both',expand=True)
+
+        text.insert('1.0',observatii)
+        text.configure(state='disabled')
+
+        ttk.Button(
+            fereastra,
+            text='Închide',
+            command=fereastra.destroy
+        ).pack(pady=10)
  def clear(self):
     self.selected=None
     for v in self.vars.values():v.set('')
