@@ -30,7 +30,7 @@ class App:
         im=Image.open(os.path.join(os.path.dirname(__file__),'logo.jpeg'));im.thumbnail((250,130));self.logo=ImageTk.PhotoImage(im);tk.Label(header,image=self.logo,bg=WHITE).pack(side='left',padx=10,pady=5)
     except Exception: tk.Label(header,text='TTC',font=('Segoe UI',26,'bold'),fg=RED,bg=WHITE).pack(side='left',padx=18)
     tk.Label(header,text='EVIDENȚĂ ATESTATE ȘI INSPECȚII',font=('Segoe UI',18,'bold'),fg=BLUE,bg=WHITE).pack(side='left',padx=12)
-stats=tk.Frame(self.root,bg=BG)
+    stats=tk.Frame(self.root,bg=BG)
     stats.pack(fill='x',padx=10)
 
     self.statslabels={}
