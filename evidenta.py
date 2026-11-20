@@ -39,8 +39,7 @@ class App:
     try:
         from PIL import Image,ImageTk
         im=Image.open(os.path.join(os.path.dirname(_file_),'logo.jpeg'))
-        from PIL import ImageChops
-        im=im.crop(ImageChops.difference(im.convert('RGB'),Image.new('RGB',im.size,'white')).getbbox() or (0,0,*im.size))
+        
         im.thumbnail((250,130))
         self.logo=ImageTk.PhotoImage(im)
         tk.Label(logo_frame,image=self.logo,bg=WHITE).pack()
