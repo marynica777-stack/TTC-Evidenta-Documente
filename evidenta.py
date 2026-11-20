@@ -16,6 +16,11 @@ def connect():
     if 'data_inregistrarii' not in cols:
         c.execute("ALTER TABLE records ADD COLUMN data_inregistrarii TEXT DEFAULT ''")
         c.execute("UPDATE records SET data_inregistrarii=? WHERE data_inregistrarii IS NULL OR data_inregistrarii=''",(date.today().strftime('%d.%m.%Y'),))
+    if 'nr_referinta' not in cols:
+        c.execute("ALTER TABLE records ADD COLUMN nr_referinta INTEGER")
+        c.execute("UPDATE records SET nr_referinta=id WHERE nr_referinta IS NULL")
+    if 'observatii' not in cols:
+        c.execute("ALTER TABLE records ADD COLUMN observatii TEXT DEFAULT ''")
     c.commit();return c
 
 class App:
@@ -57,9 +62,9 @@ class App:
         box.bind('<Button-1>',lambda e,k=key:self.set_status_filter(k))
 
     form=ttk.LabelFrame(self.root,text='Date persoană / document');form.pack(fill='x',padx=10,pady=8)
-    keys=['ref','data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare']
+    keys=['ref','data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','observatii']
     self.vars={k:tk.StringVar() for k in keys};self.vars['data_inregistrarii'].set(date.today().strftime('%d.%m.%Y'))
-    fields=[('Nr. referință','ref'),('Data înregistrării','data_inregistrarii'),('Nume','nume'),('Prenume','prenume'),('Telefon','telefon'),('Serviciu','serviciu'),('Număr auto','auto'),('Data efectuării (ZZ.LL.AAAA)','efectuare'),('Data expirării (ZZ.LL.AAAA)','expirare')]
+    fields=[('Nr. referință','ref'),('Data înregistrării','data_inregistrarii'),('Nume','nume'),('Prenume','prenume'),('Telefon','telefon'),('Serviciu','serviciu'),('Număr auto','auto'),('Data efectuării (ZZ.LL.AAAA)','efectuare'),('Data expirării (ZZ.LL.AAAA)','expirare'),('Observații','observatii')]
     for i,(label,key) in enumerate(fields):
       row=i//5;col=(i%5)*2;ttk.Label(form,text=label).grid(row=row,column=col,padx=4,pady=4,sticky='w')
       if key=='serviciu':w=ttk.Combobox(form,textvariable=self.vars[key],values=SERVICES,state='normal',width=19)
@@ -70,9 +75,9 @@ class App:
     searchrow=ttk.Frame(self.root);searchrow.pack(fill='x',padx=10,pady=5)
     ttk.Label(searchrow,text='Caută:').pack(side='left');self.search=tk.StringVar();ttk.Entry(searchrow,textvariable=self.search,width=35).pack(side='left',padx=5);self.search.trace_add('write',lambda *_:self.refresh())
     ttk.Label(searchrow,text='Filtru serviciu:').pack(side='left',padx=(15,0));self.filter=tk.StringVar(value='Toate');cb=ttk.Combobox(searchrow,textvariable=self.filter,values=['Toate']+SERVICES,state='readonly',width=22);cb.pack(side='left',padx=5);cb.bind('<<ComboboxSelected>>',lambda e:self.refresh())
-    cols=('ref','data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','status');self.tree=ttk.Treeview(self.root,columns=cols,show='headings',selectmode='browse')
-    heads={'ref':'Nr. referință','data_inregistrarii':'Data înregistrării','nume':'Nume','prenume':'Prenume','telefon':'Telefon','serviciu':'Serviciu','auto':'Nr. auto','efectuare':'Data efectuării','expirare':'Data expirării','status':'Status'}
-    widths={'ref':90,'data_inregistrarii':120,'nume':110,'prenume':110,'telefon':110,'serviciu':170,'auto':100,'efectuare':120,'expirare':120,'status':140}
+    cols=('ref','data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','status','observatii');self.tree=ttk.Treeview(self.root,columns=cols,show='headings',selectmode='browse')
+    heads={'ref':'Nr. referință','data_inregistrarii':'Data înregistrării','nume':'Nume','prenume':'Prenume','telefon':'Telefon','serviciu':'Serviciu','auto':'Nr. auto','efectuare':'Data efectuării','expirare':'Data expirării','status':'Status','observatii':'Observații'}
+    widths={'ref':90,'data_inregistrarii':120,'nume':110,'prenume':110,'telefon':110,'serviciu':170,'auto':100,'efectuare':120,'expirare':120,'status':140,'observatii':250}
     for c in cols:self.tree.heading(c,text=heads[c]);self.tree.column(c,width=widths[c],anchor='center')
     self.tree.pack(fill='both',expand=True,padx=10,pady=8);self.tree.bind('<<TreeviewSelect>>',self.select)
     self.tree.tag_configure('expired',background='#ffc5c5');self.tree.tag_configure('soon',background='#ffe0b2');self.tree.tag_configure('later',background='#dcefdc')
@@ -90,8 +95,11 @@ class App:
     self.refresh()
  def parsed(self,s):return datetime.strptime(s.strip(),'%d.%m.%Y').date()
  def save(self):
-    vals=[self.vars[k].get().strip() for k in ['data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare']]
+    vals=[self.vars[k].get().strip() for k in ['data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','observatii']]
 
+    vals[1]=vals[1].upper()
+    vals[2]=vals[2].upper() 
+     
     if not vals[1] or not vals[2] or not vals[4]:
         messagebox.showwarning('Date incomplete','Completează numele, prenumele și serviciul.')
         return
@@ -104,10 +112,27 @@ class App:
                 messagebox.showerror('Dată invalidă',f'{label} trebuie introdusă în format ZZ.LL.AAAA.')
                 return
 
+    if not self.selected:
+        numere=self.conn.execute(
+            'SELECT nr_referinta FROM records WHERE nr_referinta IS NOT NULL ORDER BY nr_referinta'
+        ).fetchall()
+
+        nr_nou=1
+        for (nr,) in numere:
+            if nr==nr_nou:
+                nr_nou+=1
+            elif nr>nr_nou:
+                break
     if self.selected:
-        self.conn.execute('UPDATE records SET data_inregistrarii=?,nume=?,prenume=?,telefon=?,serviciu=?,auto=?,efectuare=?,expirare=? WHERE id=?',(*vals,self.selected))
+        self.conn.execute(
+            'UPDATE records SET data_inregistrarii=?,nume=?,prenume=?,telefon=?,serviciu=?,auto=?,efectuare=?,expirare=?,observatii=? WHERE id=?',
+            (*vals,self.selected)
+        )
     else:
-        self.conn.execute('INSERT INTO records(data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare) VALUES(?,?,?,?,?,?,?,?)',vals)
+        self.conn.execute(
+            'INSERT INTO records(nr_referinta,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,observatii) VALUES(?,?,?,?,?,?,?,?,?,?)',
+            (nr_nou,*vals)
+        )
 
     self.conn.commit()
     self.clear()
@@ -119,9 +144,9 @@ class App:
  def select(self,event=None):
     s=self.tree.selection()
     if not s:return
-    self.selected=int(s[0]);row=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare FROM records WHERE id=?',(self.selected,)).fetchone()
-    self.vars['ref'].set(str(row[0]))
-    for k,v in zip(['data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare'],row[1:]):self.vars[k].set(v or '')
+    self.selected=int(s[0]);row=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,observatii FROM records WHERE id=?',(self.selected,)).fetchone()
+    self.vars['ref'].set(str(self.conn.execute('SELECT nr_referinta FROM records WHERE id=?',(self.selected,)).fetchone()[0]))
+    for k,v in zip(['data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','observatii'],row[1:]):self.vars[k].set(v or '')
  def delete(self):
     if not self.selected:messagebox.showinfo('Selectare','Selectează un rând din tabel.');return
     if messagebox.askyesno('Confirmare','Ștergi înregistrarea selectată?'):self.conn.execute('DELETE FROM records WHERE id=?',(self.selected,));self.conn.commit();self.clear();self.refresh()
@@ -135,7 +160,7 @@ class App:
     fil=self.filter.get()
     selected_status=self.filter_status.get()
 
-    rows=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare FROM records ORDER BY expirare').fetchall()
+    rows=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,nr_referinta,observatii FROM records ORDER BY nr_referinta').fetchall()
 
     for r in rows:
       if r[8]:
@@ -191,7 +216,7 @@ class App:
       if selected_status=='incomplete' and delta is not None:
         continue
 
-      self.tree.insert('', 'end',iid=str(r[0]),values=(r[0],r[1],*r[2:],status),tags=(tag,) if tag else ())
+      self.tree.insert('', 'end',iid=str(r[0]),values=(r[9],*r[1:9],status,r[10] or ''),tags=(tag,) if tag else ())
 
     for k,v in counts.items():
       if k in self.statslabels:
@@ -217,10 +242,10 @@ class App:
  def export(self):
     path=filedialog.asksaveasfilename(defaultextension='.csv',filetypes=[('Excel CSV','*.csv')],title='Exportă evidența TTC')
     if not path:return
-    rows=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare FROM records ORDER BY expirare').fetchall()
+    rows=self.conn.execute('SELECT nr_referinta,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,observatii FROM records ORDER BY nr_referinta').fetchall()
     try:
       with open(path,'w',newline='',encoding='utf-8-sig') as f:
-        w=csv.writer(f,delimiter=';');w.writerow(['Nr. referință','Data înregistrării','Nume','Prenume','Telefon','Serviciu','Număr auto','Data efectuării','Data expirării']);w.writerows(rows)
+        w=csv.writer(f,delimiter=';');w.writerow(['Nr. referință','Data înregistrării','Nume','Prenume','Telefon','Serviciu','Număr auto','Data efectuării','Data expirării','Observații']);w.writerows(rows)
       messagebox.showinfo('Export reușit','Fișierul CSV a fost exportat și poate fi deschis în Excel.')
     except Exception as e:messagebox.showerror('Eroare export',str(e))
 if __name__=='__main__':
