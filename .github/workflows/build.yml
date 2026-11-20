@@ -1,19 +1,25 @@
 name: Build TTC Windows app
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - run: pip install pyinstaller pillow
+
       - run: pyinstaller --noconfirm --windowed --name "TTC Evidenta Documente" --add-data "logo.jpeg;." evidenta.py
+
       - uses: actions/upload-artifact@v4
         with:
           name: TTC-Evidenta-Documente-Windows
-          path: dist/TTC Evidenta Documente.exe
+          path: dist/TTC Evidenta Documente/
