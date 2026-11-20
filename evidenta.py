@@ -38,7 +38,7 @@ class App:
     logo_frame.pack(side='left',padx=18)
     try:
         from PIL import Image,ImageTk
-        im=Image.open(os.path.join(getattr(sys,'MEIPASS',os.path.dirname(file_)),'logo.jpeg'))
+        im=Image.open(os.path.join(getattr(sys,'_MEIPASS',os.path.dirname(__file__)),'logo.jpeg'))
         
         im.thumbnail((250,130))
         self.logo=ImageTk.PhotoImage(im)
