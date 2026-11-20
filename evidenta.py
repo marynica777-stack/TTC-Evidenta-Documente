@@ -44,7 +44,9 @@ class App:
         self.logo=ImageTk.PhotoImage(im)
         tk.Label(logo_frame,image=self.logo,bg=WHITE).pack()
         tk.Label(logo_frame,text='COMPANY',font=('Segoe UI',12,'bold'),fg=BLUE,bg=WHITE).pack(pady=(0,0))
-    except Exception: tk.Label(header,text='TTC',font=('Segoe UI',26,'bold'),fg=RED,bg=WHITE).pack(side='left',padx=18)
+    except Exception as e:
+        messagebox.showerror('Eroare siglă', str(e))
+        tk.Label(header,text='TTC',font=('Segoe UI',26,'bold'),fg=RED,bg=WHITE).pack(side='left',padx=18)
     tk.Label(header,text='EVIDENȚĂ ATESTATE ȘI INSPECȚII',font=('Segoe UI',18,'bold'),fg=BLUE,bg=WHITE).pack(side='left',padx=12)
     stats=tk.Frame(self.root,bg=BG)
     stats.pack(fill='x',padx=10)
