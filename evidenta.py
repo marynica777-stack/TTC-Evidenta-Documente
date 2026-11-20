@@ -34,9 +34,12 @@ class App:
  def build(self):
     style=ttk.Style();style.theme_use('clam');style.configure('Treeview',rowheight=28,background='white',fieldbackground='white');style.configure('Treeview.Heading',font=('Segoe UI',9,'bold'),foreground=BLUE);style.configure('TButton',font=('Segoe UI',9));style.configure('TLabel',background=BG)
     header=tk.Frame(self.root,bg=WHITE);header.pack(fill='x',padx=10,pady=(10,4))
+    logo_frame=tk.Frame(header,bg=WHITE)
+    logo_frame.pack(side='left',padx=18)
     try:
         from PIL import Image,ImageTk
-        im=Image.open(os.path.join(os.path.dirname(__file__),'logo.jpeg'));im.thumbnail((250,130));self.logo=ImageTk.PhotoImage(im);tk.Label(header,image=self.logo,bg=WHITE).pack(side='left',padx=10,pady=5)
+        im=Image.open(os.path.join(os.path.dirname(__file__),'logo.jpeg'));im.thumbnail((250,130));self.logo=ImageTk.PhotoImage(im);tk.Label(logo_frame,image=self.logo,bg=WHITE).pack()
+        tk.Label(logo_frame,text='COMPANY',font=('Segoe UI',12,'bold'),fg=BLUE,bg=WHITE).pack()
     except Exception: tk.Label(header,text='TTC',font=('Segoe UI',26,'bold'),fg=RED,bg=WHITE).pack(side='left',padx=18)
     tk.Label(header,text='EVIDENȚĂ ATESTATE ȘI INSPECȚII',font=('Segoe UI',18,'bold'),fg=BLUE,bg=WHITE).pack(side='left',padx=12)
     stats=tk.Frame(self.root,bg=BG)
@@ -68,7 +71,7 @@ class App:
     form=ttk.LabelFrame(self.root,text='Date persoană / document');form.pack(fill='x',padx=10,pady=8)
     keys=['ref','data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','observatii']
     self.vars={k:tk.StringVar() for k in keys};self.vars['data_inregistrarii'].set(date.today().strftime('%d.%m.%Y'))
-    fields=[('Nr. referință','ref'),('Data înregistrării','data_inregistrarii'),('Nume','nume'),('Prenume','prenume'),('Telefon','telefon'),('Serviciu','serviciu'),('Număr auto','auto'),('Data efectuării (ZZ.LL.AAAA)','efectuare'),('Data expirării (ZZ.LL.AAAA)','expirare'),('Observații','observatii')]
+    fields=[('Nr. înregistrare','ref'),('Data înregistrării','data_inregistrarii'),('Nume','nume'),('Prenume','prenume'),('Telefon','telefon'),('Serviciu','serviciu'),('Număr auto','auto'),('Data efectuării (ZZ.LL.AAAA)','efectuare'),('Data expirării (ZZ.LL.AAAA)','expirare'),('Observații','observatii')]
     for i,(label,key) in enumerate(fields):
       row=i//5;col=(i%5)*2;ttk.Label(form,text=label).grid(row=row,column=col,padx=4,pady=4,sticky='w')
       if key=='serviciu':w=ttk.Combobox(form,textvariable=self.vars[key],values=SERVICES,state='normal',width=19)
@@ -82,7 +85,7 @@ class App:
     ttk.Label(searchrow,text='Caută:').pack(side='left');self.search=tk.StringVar();ttk.Entry(searchrow,textvariable=self.search,width=35).pack(side='left',padx=5);self.search.trace_add('write',lambda *_:self.refresh())
     ttk.Label(searchrow,text='Filtru serviciu:').pack(side='left',padx=(15,0));self.filter=tk.StringVar(value='Toate');cb=ttk.Combobox(searchrow,textvariable=self.filter,values=['Toate']+SERVICES,state='readonly',width=22);cb.pack(side='left',padx=5);cb.bind('<<ComboboxSelected>>',lambda e:self.refresh())
     cols=('ref','data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','status','observatii');self.tree=ttk.Treeview(self.root,columns=cols,show='headings',selectmode='browse')
-    heads={'ref':'Nr. referință','data_inregistrarii':'Data înregistrării','nume':'Nume','prenume':'Prenume','telefon':'Telefon','serviciu':'Serviciu','auto':'Nr. auto','efectuare':'Data efectuării','expirare':'Data expirării','status':'Status','observatii':'Observații'}
+    heads={'ref':'Nr. înregistrare','data_inregistrarii':'Data înregistrării','nume':'Nume','prenume':'Prenume','telefon':'Telefon','serviciu':'Serviciu','auto':'Nr. auto','efectuare':'Data efectuării','expirare':'Data expirării','status':'Status','observatii':'Observații'}
     widths={'ref':90,'data_inregistrarii':120,'nume':110,'prenume':110,'telefon':110,'serviciu':170,'auto':100,'efectuare':120,'expirare':120,'status':140,'observatii':250}
     for c in cols:self.tree.heading(c,text=heads[c]);self.tree.column(c,width=widths[c],minwidth=widths[c],stretch=False,anchor='center')
 
@@ -310,7 +313,7 @@ class App:
         ws.title='Evidenta TTC'
 
         headers=[
-            'Nr. referință','Data înregistrării','Nume',
+            'Nr. înregistrare','Data înregistrării','Nume',
             'Prenume','Telefon','Serviciu','Număr auto',
             'Data efectuării','Data expirării','Observații'
         ]
