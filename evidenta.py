@@ -40,10 +40,10 @@ class App:
         from PIL import Image,ImageTk
         im=Image.open(os.path.join(getattr(sys,'_MEIPASS',os.path.dirname(__file__)),'logo.jpeg'))
         
-        im.thumbnail((250,130))
+        im.thumbnail((250,110))
         self.logo=ImageTk.PhotoImage(im)
         tk.Label(logo_frame,image=self.logo,bg=WHITE).pack()
-        tk.Label(logo_frame,text='COMPANY',font=('Segoe UI',12,'bold'),fg=BLUE,bg=WHITE).pack(pady=(0,0))
+        tk.Label(logo_frame,text='COMPANY',font=('Segoe UI',12,'bold'),fg=BLUE,bg=WHITE).pack(pady=(0,0),anchor='center')
     except Exception as e:
         messagebox.showerror('Eroare siglă', str(e))
         tk.Label(header,text='TTC',font=('Segoe UI',26,'bold'),fg=RED,bg=WHITE).pack(side='left',padx=18)
