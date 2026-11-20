@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - run: pip install pyinstaller pillow
+      - run: pip install pyinstaller pillow openpyx1
 
       - run: pyinstaller --noconfirm --windowed --name "TTC Evidenta Documente" --add-data "logo.jpeg;." evidenta.py
 
