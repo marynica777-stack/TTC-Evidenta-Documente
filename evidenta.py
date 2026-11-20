@@ -30,10 +30,32 @@ class App:
         im=Image.open(os.path.join(os.path.dirname(__file__),'logo.jpeg'));im.thumbnail((250,130));self.logo=ImageTk.PhotoImage(im);tk.Label(header,image=self.logo,bg=WHITE).pack(side='left',padx=10,pady=5)
     except Exception: tk.Label(header,text='TTC',font=('Segoe UI',26,'bold'),fg=RED,bg=WHITE).pack(side='left',padx=18)
     tk.Label(header,text='EVIDENȚĂ ATESTATE ȘI INSPECȚII',font=('Segoe UI',18,'bold'),fg=BLUE,bg=WHITE).pack(side='left',padx=12)
-    stats=tk.Frame(self.root,bg=BG);stats.pack(fill='x',padx=10)
+stats=tk.Frame(self.root,bg=BG)
+    stats.pack(fill='x',padx=10)
+
     self.statslabels={}
-    for key,label in [('exp','EXPIRATE'),('30','≤ 30 ZILE'),('60','31–60 ZILE'),('90','61–90 ZILE')]:
-      box=ttk.LabelFrame(stats,text=label);box.pack(side='left',fill='x',expand=True,padx=5);self.statslabels[key]=ttk.Label(box,text='0',font=('Segoe UI',18,'bold'),foreground=RED);self.statslabels[key].pack(pady=6)
+    self.filter_status=tk.StringVar(value='Toate')
+
+    categories=[
+        ('exp','EXPIRATE'),
+        ('30','≤ 30 ZILE'),
+        ('60','31–60 ZILE'),
+        ('90','61–90 ZILE'),
+        ('incomplete','NECOMPLET'),
+        ('all','TOATE')
+    ]
+
+    for key,label in categories:
+        box=ttk.LabelFrame(stats,text=label)
+        box.pack(side='left',fill='x',expand=True,padx=5)
+
+        lbl=ttk.Label(box,text='0',font=('Segoe UI',18,'bold'),foreground=RED)
+        lbl.pack(pady=6)
+
+        self.statslabels[key]=lbl
+        lbl.bind('<Button-1>',lambda e,k=key:self.set_status_filter(k))
+        box.bind('<Button-1>',lambda e,k=key:self.set_status_filter(k))
+
     form=ttk.LabelFrame(self.root,text='Date persoană / document');form.pack(fill='x',padx=10,pady=8)
     keys=['ref','data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare']
     self.vars={k:tk.StringVar() for k in keys};self.vars['data_inregistrarii'].set(date.today().strftime('%d.%m.%Y'))
@@ -55,7 +77,18 @@ class App:
     self.tree.pack(fill='both',expand=True,padx=10,pady=8);self.tree.bind('<<TreeviewSelect>>',self.select)
     self.tree.tag_configure('expired',background='#ffc5c5');self.tree.tag_configure('soon',background='#ffe0b2');self.tree.tag_configure('later',background='#dcefdc')
     tk.Label(self.root,text='TTC | Date salvate local. Exportă periodic o copie CSV pentru backup.',font=('Segoe UI',9),bg=BG,fg=BLUE).pack(pady=5)
- def parsed(self,s):return datetime.strptime(s.strip(),'%d.%m.%Y').date()
+ def set_status_filter(self,key):
+    mapping={
+        'exp':'EXPIRATE',
+        '30':'≤ 30 ZILE',
+        '60':'31–60 ZILE',
+        '90':'61–90 ZILE',
+        'incomplete':'NECOMPLET',
+        'all':'Toate'
+    }
+    self.filter_status.set(key)
+    self.refresh()
+     def parsed(self,s):return datetime.strptime(s.strip(),'%d.%m.%Y').date()
  def save(self):
     vals=[self.vars[k].get().strip() for k in ['data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare']]
 
@@ -97,9 +130,10 @@ class App:
         self.tree.delete(i)
 
     today=date.today()
-    counts={'exp':0,'30':0,'60':0,'90':0}
+    counts={'exp':0,'30':0,'60':0,'90':0,'incomplete':0,'all':0}
     q=self.search.get().lower()
     fil=self.filter.get()
+    selected_status=self.filter_status.get()
 
     rows=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare FROM records ORDER BY expirare').fetchall()
 
@@ -116,6 +150,7 @@ class App:
       if delta is None:
         status='NECOMPLET'
         tag=''
+        counts['incomplete']+=1
       elif delta<0:
         status='EXPIRAT'
         tag='expired'
@@ -136,6 +171,8 @@ class App:
         status=f'{delta} zile'
         tag=''
 
+      counts['all']+=1
+
       searchable=' '.join(str(x or '') for x in r).lower()
 
       if q and q not in searchable:
@@ -143,10 +180,22 @@ class App:
       if fil!='Toate' and r[5]!=fil:
         continue
 
-      self.tree.insert('', 'end', iid=str(r[0]), values=(r[0],r[1],*r[2:],status),tags=(tag,) if tag else ())
+      if selected_status=='exp' and not (delta is not None and delta<0):
+        continue
+      if selected_status=='30' and not (delta is not None and 0<=delta<=30):
+        continue
+      if selected_status=='60' and not (delta is not None and 31<=delta<=60):
+        continue
+      if selected_status=='90' and not (delta is not None and 61<=delta<=90):
+        continue
+      if selected_status=='incomplete' and delta is not None:
+        continue
+
+      self.tree.insert('', 'end',iid=str(r[0]),values=(r[0],r[1],*r[2:],status),tags=(tag,) if tag else ())
 
     for k,v in counts.items():
-      self.statslabels[k].config(text=str(v))
+      if k in self.statslabels:
+        self.statslabels[k].config(text=str(v))
  def alerts(self):
     upcoming=[]
 
