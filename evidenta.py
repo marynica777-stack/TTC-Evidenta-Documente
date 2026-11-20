@@ -35,7 +35,7 @@ class App:
     style=ttk.Style();style.theme_use('clam');style.configure('Treeview',rowheight=28,background='white',fieldbackground='white');style.configure('Treeview.Heading',font=('Segoe UI',9,'bold'),foreground=BLUE);style.configure('TButton',font=('Segoe UI',9));style.configure('TLabel',background=BG)
     header=tk.Frame(self.root,bg=WHITE);header.pack(fill='x',padx=10,pady=(10,4))
     logo_frame=tk.Frame(header,bg=WHITE)
-    logo_frame.pack(side='left',padx=18)
+    logo_frame.pack(side='left',padx=(0,18))
     try:
         from PIL import Image,ImageTk
         im=Image.open(os.path.join(getattr(sys,'_MEIPASS',os.path.dirname(__file__)),'logo.jpeg'))
