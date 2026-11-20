@@ -30,6 +30,7 @@ class App:
  def __init__(self,root):
     self.root=root;root.title('TTC | Evidență Atestate și Inspecții');root.geometry('1400x800');root.minsize(1050,650);root.configure(bg=BG)
     self.conn=connect();self.selected=None;self.build();self.refresh();self.alerts()
+    self.root.after(300,lambda:self.nume_entry.focus_force())
  def build(self):
     style=ttk.Style();style.theme_use('clam');style.configure('Treeview',rowheight=28,background='white',fieldbackground='white');style.configure('Treeview.Heading',font=('Segoe UI',9,'bold'),foreground=BLUE);style.configure('TButton',font=('Segoe UI',9));style.configure('TLabel',background=BG)
     header=tk.Frame(self.root,bg=WHITE);header.pack(fill='x',padx=10,pady=(10,4))
@@ -72,6 +73,8 @@ class App:
       row=i//5;col=(i%5)*2;ttk.Label(form,text=label).grid(row=row,column=col,padx=4,pady=4,sticky='w')
       if key=='serviciu':w=ttk.Combobox(form,textvariable=self.vars[key],values=SERVICES,state='normal',width=19)
       else:w=ttk.Entry(form,textvariable=self.vars[key],width=19)
+      if key=='nume':
+        self.nume_entry=w
       w.grid(row=row,column=col+1,padx=4,pady=4,sticky='ew')
     buttons=ttk.Frame(form);buttons.grid(row=2,column=0,columnspan=10,pady=5)
     for label,cmd in [('Adaugă / Salvează',self.save),('Șterge',self.delete),('Curăță formular',self.clear),('Export Excel (CSV)',self.export)]:ttk.Button(buttons,text=label,command=cmd).pack(side='left',padx=5)
