@@ -58,15 +58,27 @@ class App:
  def parsed(self,s):return datetime.strptime(s.strip(),'%d.%m.%Y').date()
  def save(self):
     vals=[self.vars[k].get().strip() for k in ['data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare']]
-    if not vals[1] or not vals[2] or not vals[4] or not vals[5] or not vals[7]:messagebox.showwarning('Date incomplete','Completează nume, prenume, serviciu, număr auto și data expirării.');return
-    try:self.parsed(vals[0]);self.parsed(vals[7]);
-    except ValueError:messagebox.showerror('Dată invalidă','Datele trebuie introduse în format ZZ.LL.AAAA.');return
-    if vals[6]:
-      try:self.parsed(vals[6])
-      except ValueError:messagebox.showerror('Dată invalidă','Data efectuării trebuie în format ZZ.LL.AAAA.');return
-    if self.selected:self.conn.execute('UPDATE records SET data_inregistrarii=?,nume=?,prenume=?,telefon=?,serviciu=?,auto=?,efectuare=?,expirare=? WHERE id=?',(*vals,self.selected))
-    else:self.conn.execute('INSERT INTO records(data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare) VALUES(?,?,?,?,?,?,?,?)',vals)
-    self.conn.commit();self.clear();self.refresh()
+
+    if not vals[1] or not vals[2] or not vals[4]:
+        messagebox.showwarning('Date incomplete','Completează numele, prenumele și serviciul.')
+        return
+
+    for index, label in [(0,'Data înregistrării'),(6,'Data efectuării'),(7,'Data expirării')]:
+        if vals[index]:
+            try:
+                self.parsed(vals[index])
+            except ValueError:
+                messagebox.showerror('Dată invalidă',f'{label} trebuie introdusă în format ZZ.LL.AAAA.')
+                return
+
+    if self.selected:
+        self.conn.execute('UPDATE records SET data_inregistrarii=?,nume=?,prenume=?,telefon=?,serviciu=?,auto=?,efectuare=?,expirare=? WHERE id=?',(*vals,self.selected))
+    else:
+        self.conn.execute('INSERT INTO records(data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare) VALUES(?,?,?,?,?,?,?,?)',vals)
+
+    self.conn.commit()
+    self.clear()
+    self.refresh()
  def clear(self):
     self.selected=None
     for v in self.vars.values():v.set('')
@@ -81,29 +93,78 @@ class App:
     if not self.selected:messagebox.showinfo('Selectare','Selectează un rând din tabel.');return
     if messagebox.askyesno('Confirmare','Ștergi înregistrarea selectată?'):self.conn.execute('DELETE FROM records WHERE id=?',(self.selected,));self.conn.commit();self.clear();self.refresh()
  def refresh(self):
-    for i in self.tree.get_children():self.tree.delete(i)
-    today=date.today();counts={'exp':0,'30':0,'60':0,'90':0};q=self.search.get().lower();fil=self.filter.get()
+    for i in self.tree.get_children():
+        self.tree.delete(i)
+
+    today=date.today()
+    counts={'exp':0,'30':0,'60':0,'90':0}
+    q=self.search.get().lower()
+    fil=self.filter.get()
+
     rows=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare FROM records ORDER BY expirare').fetchall()
+
     for r in rows:
-      try:d=self.parsed(r[8]);delta=(d-today).days
-      except Exception:continue
-      if delta<0:status='EXPIRAT';tag='expired';counts['exp']+=1
-      elif delta<=30:status=f'Expiră în {delta} zile';tag='soon';counts['30']+=1
-      elif delta<=60:status=f'Expiră în {delta} zile';tag='later';counts['60']+=1
-      elif delta<=90:status=f'Expiră în {delta} zile';tag='later';counts['90']+=1
-      else:status=f'{delta} zile';tag=''
+      if r[8]:
+        try:
+          d=self.parsed(r[8])
+          delta=(d-today).days
+        except Exception:
+          delta=None
+      else:
+        delta=None
+
+      if delta is None:
+        status='NECOMPLET'
+        tag=''
+      elif delta<0:
+        status='EXPIRAT'
+        tag='expired'
+        counts['exp']+=1
+      elif delta<=30:
+        status=f'Expiră în {delta} zile'
+        tag='soon'
+        counts['30']+=1
+      elif delta<=60:
+        status=f'Expiră în {delta} zile'
+        tag='later'
+        counts['60']+=1
+      elif delta<=90:
+        status=f'Expiră în {delta} zile'
+        tag='later'
+        counts['90']+=1
+      else:
+        status=f'{delta} zile'
+        tag=''
+
       searchable=' '.join(str(x or '') for x in r).lower()
-      if q and q not in searchable:continue
-      if fil!='Toate' and r[5]!=fil:continue
-      self.tree.insert('', 'end',iid=str(r[0]),values=(r[0],r[1],*r[2:],status),tags=(tag,) if tag else ())
-    for k,v in counts.items():self.statslabels[k].config(text=str(v))
+
+      if q and q not in searchable:
+        continue
+      if fil!='Toate' and r[5]!=fil:
+        continue
+
+      self.tree.insert('', 'end', iid=str(r[0]), values=(r[0],r[1],*r[2:],status),tags=(tag,) if tag else ())
+
+    for k,v in counts.items():
+      self.statslabels[k].config(text=str(v))
  def alerts(self):
     upcoming=[]
+
     for r in self.conn.execute('SELECT nume,prenume,serviciu,auto,expirare FROM records').fetchall():
-      try:d=self.parsed(r[4]);delta=(d-date.today()).days
-      except Exception:continue
-      if 0<=delta<=30:upcoming.append(f'{r[0]} {r[1]} — {r[2]} ({r[3]}), expiră la {r[4]}: {delta} zile')
-    if upcoming:messagebox.showwarning('TTC – Atenționare expirare document','\n\n'.join(upcoming))
+      if not r[4]:
+        continue
+
+      try:
+        d=self.parsed(r[4])
+        delta=(d-date.today()).days
+      except Exception:
+        continue
+
+      if 0<=delta<=30:
+        upcoming.append(f'{r[0]} {r[1]} — {r[2]} ({r[3] or "fără număr auto"}), expiră la {r[4]}: {delta} zile')
+
+    if upcoming:
+      messagebox.showwarning('TTC – Atenționare expirare document','\n\n'.join(upcoming))
  def export(self):
     path=filedialog.asksaveasfilename(defaultextension='.csv',filetypes=[('Excel CSV','*.csv')],title='Exportă evidența TTC')
     if not path:return
