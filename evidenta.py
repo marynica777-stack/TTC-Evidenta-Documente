@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import sqlite3, csv, os
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
 from datetime import date, datetime
 
 APP_DIR=os.path.join(os.environ.get('APPDATA',os.path.expanduser('~')),'EvidentaDocumente')
@@ -240,13 +243,97 @@ class App:
     if upcoming:
       messagebox.showwarning('TTC – Atenționare expirare document','\n\n'.join(upcoming))
  def export(self):
-    path=filedialog.asksaveasfilename(defaultextension='.csv',filetypes=[('Excel CSV','*.csv')],title='Exportă evidența TTC')
-    if not path:return
-    rows=self.conn.execute('SELECT nr_referinta,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,observatii FROM records ORDER BY nr_referinta').fetchall()
+    path=filedialog.asksaveasfilename(
+        defaultextension='.xlsx',
+        filetypes=[('Excel Workbook','*.xlsx')],
+        title='Exportă evidența TTC în Excel'
+    )
+
+    if not path:
+        return
+
     try:
-      with open(path,'w',newline='',encoding='utf-8-sig') as f:
-        w=csv.writer(f,delimiter=';');w.writerow(['Nr. referință','Data înregistrării','Nume','Prenume','Telefon','Serviciu','Număr auto','Data efectuării','Data expirării','Observații']);w.writerows(rows)
-      messagebox.showinfo('Export reușit','Fișierul CSV a fost exportat și poate fi deschis în Excel.')
-    except Exception as e:messagebox.showerror('Eroare export',str(e))
+        rows=self.conn.execute(
+            '''SELECT nr_referinta,data_inregistrarii,nume,prenume,
+            telefon,serviciu,auto,efectuare,expirare,observatii
+            FROM records ORDER BY nr_referinta'''
+        ).fetchall()
+
+        wb=Workbook()
+        ws=wb.active
+        ws.title='Evidenta TTC'
+
+        headers=[
+            'Nr. referință','Data înregistrării','Nume',
+            'Prenume','Telefon','Serviciu','Număr auto',
+            'Data efectuării','Data expirării','Observații'
+        ]
+
+        ws.append(headers)
+
+        for row in rows:
+            ws.append(list(row))
+
+        # Antet albastru TTC
+        for cell in ws[1]:
+            cell.fill=PatternFill(
+                start_color='294C91',
+                end_color='294C91',
+                fill_type='solid'
+            )
+            cell.font=Font(color='FFFFFF',bold=True)
+            cell.alignment=Alignment(horizontal='center')
+
+        # Dimensiunea coloanelor
+        widths=[16,20,20,20,18,25,18,20,20,40]
+
+        for i,width in enumerate(widths,1):
+            ws.column_dimensions[get_column_letter(i)].width=width
+
+        # Telefonul este text, pentru a păstra zero inițial
+        for cell in ws['E'][1:]:
+            cell.number_format='@'
+
+        # Evidențierea documentelor expirate sau aproape de expirare
+        today=date.today()
+
+        for row in range(2,ws.max_row+1):
+            value=ws.cell(row=row,column=9).value
+
+            if value:
+                try:
+                    expiry=self.parsed(str(value))
+                    days=(expiry-today).days
+
+                    if days<0:
+                        color='FFC7CE'
+                    elif days<=30:
+                        color='FFE0B2'
+                    else:
+                        color=None
+
+                    if color:
+                        for cell in ws[row]:
+                            cell.fill=PatternFill(
+                                start_color=color,
+                                end_color=color,
+                                fill_type='solid'
+                            )
+                except (ValueError,TypeError):
+                    pass
+
+        # Filtre și antet fix
+        ws.auto_filter.ref=ws.dimensions
+        ws.freeze_panes='A2'
+
+        wb.save(path)
+
+        messagebox.showinfo(
+            'Export reușit',
+            'Fișierul Excel a fost salvat cu succes.'
+        )
+
+    except Exception as e:
+        messagebox.showerror('Eroare export',str(e))
 if __name__=='__main__':
  root=tk.Tk();app=App(root);root.mainloop()
