@@ -85,10 +85,11 @@ class App:
     heads={'ref':'Nr. referință','data_inregistrarii':'Data înregistrării','nume':'Nume','prenume':'Prenume','telefon':'Telefon','serviciu':'Serviciu','auto':'Nr. auto','efectuare':'Data efectuării','expirare':'Data expirării','status':'Status','observatii':'Observații'}
     widths={'ref':90,'data_inregistrarii':120,'nume':110,'prenume':110,'telefon':110,'serviciu':170,'auto':100,'efectuare':120,'expirare':120,'status':140,'observatii':250}
     for c in cols:self.tree.heading(c,text=heads[c]);self.tree.column(c,width=widths[c],minwidth=widths[c],stretch=False,anchor='center')
-    self.tree.pack(fill='both',expand=True,padx=10,pady=8);self.tree.bind('<<TreeviewSelect>>',self.select)
+
     scroll_x=ttk.Scrollbar(self.tree.master,orient='horizontal',command=self.tree.xview)
     self.tree.configure(xscrollcommand=scroll_x.set)
     scroll_x.pack(side='bottom',fill='x',padx=10)
+     self.tree.pack(fill='both',expand=True,padx=10,pady=8);self.tree.bind('<<TreeviewSelect>>',self.select)
     self.tree.tag_configure('expired',background='#ffc5c5');self.tree.tag_configure('soon',background='#ffe0b2');self.tree.tag_configure('later',background='#dcefdc')
     tk.Label(self.root,text='TTC | Date salvate local. Exportă periodic o copie CSV pentru backup.',font=('Segoe UI',9),bg=BG,fg=BLUE).pack(pady=5)
  def set_status_filter(self,key):
