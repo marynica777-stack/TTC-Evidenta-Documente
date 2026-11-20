@@ -39,7 +39,10 @@ class App:
     try:
         from PIL import Image,ImageTk
         im=Image.open(os.path.join(getattr(sys,'_MEIPASS',os.path.dirname(__file__)),'logo.jpeg'))
-        
+        from PIL import ImageChops
+        bbox=ImageChops.difference(im.convert('RGB'),Image.new('RGB',im.size,'white')).getbbox()
+        if bbox:
+            im=im.crop(bbox)
         im.thumbnail((250,110))
         self.logo=ImageTk.PhotoImage(im)
         tk.Label(logo_frame,image=self.logo,bg=WHITE).pack()
