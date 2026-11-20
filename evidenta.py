@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-import sqlite3, csv, os
+import sqlite3, csv, os, sys
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
@@ -38,7 +38,7 @@ class App:
     logo_frame.pack(side='left',padx=18)
     try:
         from PIL import Image,ImageTk
-        im=Image.open(os.path.join(os.path.dirname(_file_),'logo.jpeg'))
+        im=Image.open(os.path.join(getattr(sys,'MEIPASS',os.path.dirname(file_)),'logo.jpeg'))
         
         im.thumbnail((250,130))
         self.logo=ImageTk.PhotoImage(im)
