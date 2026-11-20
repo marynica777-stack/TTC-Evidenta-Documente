@@ -50,7 +50,7 @@ class App:
     except Exception as e:
         messagebox.showerror('Eroare siglă', str(e))
         tk.Label(header,text='TTC',font=('Segoe UI',26,'bold'),fg=RED,bg=WHITE).pack(side='left',padx=18)
-    tk.Label(header,text='EVIDENȚĂ ATESTATE ȘI INSPECȚII',font=('Segoe UI',18,'bold'),fg=BLUE,bg=WHITE).pack(side='left',padx=12)
+    tk.Label(header,text='EVIDENȚĂ ATESTATE ȘI INSPECȚII TAHOGRAF',font=('Segoe UI',18,'bold'),fg=BLUE,bg=WHITE).pack(side='left',padx=12)
     stats=tk.Frame(self.root,bg=BG)
     stats.pack(fill='x',padx=10)
 
