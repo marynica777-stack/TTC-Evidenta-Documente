@@ -38,8 +38,13 @@ class App:
     logo_frame.pack(side='left',padx=18)
     try:
         from PIL import Image,ImageTk
-        im=Image.open(os.path.join(os.path.dirname(__file__),'logo.jpeg'));im.thumbnail((250,130));self.logo=ImageTk.PhotoImage(im);tk.Label(logo_frame,image=self.logo,bg=WHITE).pack()
-        tk.Label(logo_frame,text='COMPANY',font=('Segoe UI',12,'bold'),fg=BLUE,bg=WHITE).pack()
+        im=Image.open(os.path.join(os.path.dirname(_file_),'logo.jpeg'))
+        from PIL import ImageChops
+        im=im.crop(ImageChops.difference(im.convert('RGB'),Image.new('RGB',im.size,'white')).getbbox() or (0,0,*im.size))
+        im.thumbnail((250,130))
+        self.logo=ImageTk.PhotoImage(im)
+        tk.Label(logo_frame,image=self.logo,bg=WHITE).pack()
+        tk.Label(logo_frame,text='COMPANY',font=('Segoe UI',12,'bold'),fg=BLUE,bg=WHITE).pack(pady=(0,0))
     except Exception: tk.Label(header,text='TTC',font=('Segoe UI',26,'bold'),fg=RED,bg=WHITE).pack(side='left',padx=18)
     tk.Label(header,text='EVIDENȚĂ ATESTATE ȘI INSPECȚII',font=('Segoe UI',18,'bold'),fg=BLUE,bg=WHITE).pack(side='left',padx=12)
     stats=tk.Frame(self.root,bg=BG)
@@ -86,7 +91,7 @@ class App:
     ttk.Label(searchrow,text='Filtru serviciu:').pack(side='left',padx=(15,0));self.filter=tk.StringVar(value='Toate');cb=ttk.Combobox(searchrow,textvariable=self.filter,values=['Toate']+SERVICES,state='readonly',width=22);cb.pack(side='left',padx=5);cb.bind('<<ComboboxSelected>>',lambda e:self.refresh())
     cols=('ref','data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','status','observatii');self.tree=ttk.Treeview(self.root,columns=cols,show='headings',selectmode='browse')
     heads={'ref':'Nr. înregistrare','data_inregistrarii':'Data înregistrării','nume':'Nume','prenume':'Prenume','telefon':'Telefon','serviciu':'Serviciu','auto':'Nr. auto','efectuare':'Data efectuării','expirare':'Data expirării','status':'Status','observatii':'Observații'}
-    widths={'ref':90,'data_inregistrarii':120,'nume':110,'prenume':110,'telefon':110,'serviciu':170,'auto':100,'efectuare':120,'expirare':120,'status':140,'observatii':250}
+    widths={'ref':150,'data_inregistrarii':120,'nume':110,'prenume':110,'telefon':110,'serviciu':170,'auto':100,'efectuare':120,'expirare':120,'status':140,'observatii':250}
     for c in cols:self.tree.heading(c,text=heads[c]);self.tree.column(c,width=widths[c],minwidth=widths[c],stretch=False,anchor='center')
 
     scroll_x=ttk.Scrollbar(self.tree.master,orient='horizontal',command=self.tree.xview)
