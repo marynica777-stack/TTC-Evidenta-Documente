@@ -88,7 +88,7 @@ class App:
     }
     self.filter_status.set(key)
     self.refresh()
-     def parsed(self,s):return datetime.strptime(s.strip(),'%d.%m.%Y').date()
+ def parsed(self,s):return datetime.strptime(s.strip(),'%d.%m.%Y').date()
  def save(self):
     vals=[self.vars[k].get().strip() for k in ['data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare']]
 
