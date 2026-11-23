@@ -24,6 +24,14 @@ def connect():
         c.execute("UPDATE records SET nr_referinta=id WHERE nr_referinta IS NULL")
     if 'observatii' not in cols:
         c.execute("ALTER TABLE records ADD COLUMN observatii TEXT DEFAULT ''")
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS istoric_modificari (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_id INTEGER NOT NULL,
+            date_vechi TEXT NOT NULL,
+            data_modificarii TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     c.commit();return c
 
 class App:
