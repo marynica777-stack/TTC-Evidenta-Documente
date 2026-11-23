@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-import sqlite3, csv, os, sys, tempfile
+import sqlite3, csv, os, sys, tempfile, json
 from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -10,6 +10,8 @@ from datetime import date, datetime
 APP_DIR=os.path.join(os.environ.get('APPDATA',os.path.expanduser('~')),'EvidentaDocumente')
 os.makedirs(APP_DIR,exist_ok=True)
 DB=os.path.join(APP_DIR,'evidenta.db')
+BACKUP_CONFIG=os.path.join(APP_DIR,'backup_settings.json')
+BACKUP_LIMIT=10
 SERVICES=['Inspecție tahograf','Atestat profesional','ADR','CPI','CPC','Altele']
 RED='#b52b2b'; BLUE='#294c91'; WHITE='#ffffff'; BG='#f2f4f7'
 
@@ -39,7 +41,8 @@ class App:
  def __init__(self,root):
     self.root=root;root.title('TTC | Evidență Atestate și Inspecții');root.geometry('1400x800');root.minsize(1050,650);root.configure(bg=BG)
     self.conn=connect();self.selected=None;self.build();self.refresh();self.alerts()
-    self.root.after(300,lambda:self.nume_entry.focus_force())
+    self.root.protocol('WM_DELETE_WINDOW', self.inchidere_cu_backup)
+    self.root.after(300, self.configurare_initiala_backup)
  def build(self):
     style=ttk.Style();style.theme_use('clam');style.configure('Treeview',rowheight=28,background='white',fieldbackground='white');style.configure('Treeview.Heading',font=('Segoe UI',9,'bold'),foreground=BLUE);style.configure('TButton',font=('Segoe UI',9));style.configure('TLabel',background=BG)
     header=tk.Frame(self.root,bg=WHITE);header.pack(fill='x',padx=10,pady=(10,4))
@@ -98,7 +101,7 @@ class App:
         self.nume_entry=w
       w.grid(row=row,column=col+1,padx=4,pady=4,sticky='ew')
     buttons=ttk.Frame(form);buttons.grid(row=2,column=0,columnspan=10,pady=5)
-    for label,cmd in [('Adaugă / Salvează',self.save),('Șterge',self.delete),('UNDO',self.undo),('Curăță formular',self.clear),('Export Excel (CSV)',self.export),('Backup date',self.backup_date),('Restaurare date',self.restaurare_date)]:ttk.Button(buttons,text=label,command=cmd).pack(side='left',padx=5)
+    for label,cmd in [('Adaugă / Salvează',self.save),('Șterge',self.delete),('UNDO',self.undo),('Curăță formular',self.clear),('Export Excel (CSV)',self.export),('Backup date',self.backup_date),('Restaurare date',self.restaurare_date),('Locație backup automat',self.alege_locatie_backup)]:ttk.Button(buttons,text=label,command=cmd).pack(side='left',padx=5)
     searchrow=ttk.Frame(self.root);searchrow.pack(fill='x',padx=10,pady=5)
     ttk.Label(searchrow,text='Caută:').pack(side='left');self.search=tk.StringVar();ttk.Entry(searchrow,textvariable=self.search,width=35).pack(side='left',padx=5);self.search.trace_add('write',lambda *_:self.refresh())
     ttk.Label(searchrow,text='Filtru serviciu:').pack(side='left',padx=(15,0));self.filter=tk.StringVar(value='Toate');cb=ttk.Combobox(searchrow,textvariable=self.filter,values=['Toate']+SERVICES,state='readonly',width=22);cb.pack(side='left',padx=5);cb.bind('<<ComboboxSelected>>',lambda e:self.refresh())
@@ -360,6 +363,104 @@ class App:
 
     if upcoming:
       messagebox.showwarning('TTC – Atenționare expirare document','\n\n'.join(upcoming))
+ def citeste_locatie_backup(self):
+    try:
+        with open(BACKUP_CONFIG, 'r', encoding='utf-8') as f:
+            settings = json.load(f)
+        folder = settings.get('folder', '')
+        return folder if isinstance(folder, str) else ''
+    except (OSError, ValueError, TypeError):
+        return ''
+
+ def alege_locatie_backup(self):
+    folder = filedialog.askdirectory(
+        title='Alege folderul pentru backup automat TTC',
+        initialdir=self.citeste_locatie_backup() or os.path.expanduser('~'),
+        mustexist=True
+    )
+    if not folder:
+        return False
+    try:
+        # Verificăm dreptul de scriere, inclusiv pentru foldere de pe server.
+        fd, test_path = tempfile.mkstemp(prefix='ttc_test_', dir=folder)
+        os.close(fd)
+        os.remove(test_path)
+        fd, tmp_config = tempfile.mkstemp(prefix='ttc_config_', suffix='.json', dir=APP_DIR)
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                json.dump({'folder': folder}, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_config, BACKUP_CONFIG)
+        finally:
+            if os.path.exists(tmp_config):
+                os.remove(tmp_config)
+        messagebox.showinfo('Backup automat', 'Locația backupului automat a fost salvată:\\n' + folder)
+        return True
+    except Exception as e:
+        messagebox.showerror('Locație backup', 'Folderul nu poate fi folosit pentru backup:\\n' + str(e))
+        return False
+
+ def configurare_initiala_backup(self):
+    if not self.citeste_locatie_backup():
+        messagebox.showinfo('Configurare backup TTC',
+                            'Alege folderul unde se vor salva automat copiile de siguranță. '
+                            'Poți schimba locația ulterior din aplicație.')
+        self.alege_locatie_backup()
+    self.nume_entry.focus_force()
+
+ def backup_automat(self):
+    folder = self.citeste_locatie_backup()
+    if not folder:
+        raise ValueError('Nu a fost configurată locația backupului automat.')
+    if not os.path.isdir(folder):
+        raise OSError('Folderul de backup nu este disponibil: ' + folder)
+    stamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
+    nume = 'TTC_AUTO_' + stamp + '.db'
+    destinatie_finala = os.path.join(folder, nume)
+    fd, tmp_path = tempfile.mkstemp(prefix='ttc_auto_tmp_', suffix='.db', dir=folder)
+    os.close(fd)
+    try:
+        copie = sqlite3.connect(tmp_path)
+        try:
+            self.conn.commit()
+            self.conn.backup(copie)
+            if copie.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                raise ValueError('Verificarea integrității backupului a eșuat.')
+        finally:
+            copie.close()
+        os.replace(tmp_path, destinatie_finala)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+    # Ștergem numai backupurile automate ale acestei aplicații,
+    # niciodată backupurile manuale sau alte fișiere din folder.
+    copii = sorted(
+        (os.path.join(folder, name) for name in os.listdir(folder)
+         if name.startswith('TTC_AUTO_') and name.endswith('.db')
+         and os.path.isfile(os.path.join(folder, name))),
+        key=lambda x: os.path.basename(x)
+    )
+    for vechi in copii[:-BACKUP_LIMIT]:
+        try:
+            os.remove(vechi)
+        except OSError:
+            pass
+    return destinatie_finala
+
+ def inchidere_cu_backup(self):
+    try:
+        self.backup_automat()
+    except Exception as e:
+        inchide = messagebox.askyesno(
+            'Backup automat nereușit',
+            'Nu s-a putut salva copia automată:\\n' + str(e) +
+            '\\n\\nDatele din aplicație rămân salvate local.' +
+            '\\n\\nVrei să închizi aplicația fără backup?'
+        )
+        if not inchide:
+            return
+    self.conn.close()
+    self.root.destroy()
+
  def backup_date(self):
     path = filedialog.asksaveasfilename(
         title='Salvează copia de siguranță TTC',
