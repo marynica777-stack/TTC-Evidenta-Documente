@@ -97,7 +97,7 @@ class App:
         self.nume_entry=w
       w.grid(row=row,column=col+1,padx=4,pady=4,sticky='ew')
     buttons=ttk.Frame(form);buttons.grid(row=2,column=0,columnspan=10,pady=5)
-    for label,cmd in [('Adaugă / Salvează',self.save),('Șterge',self.delete),('Curăță formular',self.clear),('Export Excel (CSV)',self.export)]:ttk.Button(buttons,text=label,command=cmd).pack(side='left',padx=5)
+    for label,cmd in [('Adaugă / Salvează',self.save),('Șterge',self.delete),('UNDO',self.undo),('Curăță formular',self.clear),('Export Excel (CSV)',self.export)]:ttk.Button(buttons,text=label,command=cmd).pack(side='left',padx=5)
     searchrow=ttk.Frame(self.root);searchrow.pack(fill='x',padx=10,pady=5)
     ttk.Label(searchrow,text='Caută:').pack(side='left');self.search=tk.StringVar();ttk.Entry(searchrow,textvariable=self.search,width=35).pack(side='left',padx=5);self.search.trace_add('write',lambda *_:self.refresh())
     ttk.Label(searchrow,text='Filtru serviciu:').pack(side='left',padx=(15,0));self.filter=tk.StringVar(value='Toate');cb=ttk.Combobox(searchrow,textvariable=self.filter,values=['Toate']+SERVICES,state='readonly',width=22);cb.pack(side='left',padx=5);cb.bind('<<ComboboxSelected>>',lambda e:self.refresh())
@@ -227,7 +227,47 @@ class App:
     self.selected=int(s[0]);row=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,observatii FROM records WHERE id=?',(self.selected,)).fetchone()
     self.vars['ref'].set(str(self.conn.execute('SELECT nr_referinta FROM records WHERE id=?',(self.selected,)).fetchone()[0]))
     for k,v in zip(['data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','observatii'],row[1:]):self.vars[k].set(v or '')
- def delete(self):
+    def undo(self):
+        import json
+
+        istoric = self.conn.execute(
+            "SELECT id, record_id, date_vechi FROM istoric_modificari ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+
+        if not istoric:
+            messagebox.showinfo("UNDO", "Nu exista modificari de anulat.")
+            return
+
+        istoric_id, record_id, date_vechi = istoric
+        valori = json.loads(date_vechi)
+
+        if not messagebox.askyesno(
+            "Confirmare UNDO",
+            "Doresti sa anulezi ultima modificare salvata?"
+        ):
+            return
+
+        cursor = self.conn.execute(
+            """UPDATE records SET
+            data_inregistrarii=?, nume=?, prenume=?, telefon=?,
+            serviciu=?, auto=?, efectuare=?, expirare=?, observatii=?
+            WHERE id=?""",
+            (*valori, record_id)
+        )
+
+        if cursor.rowcount == 0:
+            messagebox.showerror("UNDO", "Inregistrarea nu mai exista.")
+            return
+
+        self.conn.execute(
+            "DELETE FROM istoric_modificari WHERE id=?",
+            (istoric_id,)
+        )
+        self.conn.commit()
+        self.clear()
+        self.refresh()
+        messagebox.showinfo("UNDO", "Modificarea a fost anulata cu succes.")
+    def delete(self):
     if not self.selected:messagebox.showinfo('Selectare','Selectează un rând din tabel.');return
     if messagebox.askyesno('Confirmare','Ștergi înregistrarea selectată?'):self.conn.execute('DELETE FROM records WHERE id=?',(self.selected,));self.conn.commit();self.clear();self.refresh()
  def refresh(self):
