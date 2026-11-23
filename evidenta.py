@@ -268,8 +268,8 @@ class App:
         self.refresh()
         messagebox.showinfo("UNDO", "Modificarea a fost anulata cu succes.")
     def delete(self):
-    if not self.selected:messagebox.showinfo('Selectare','Selectează un rând din tabel.');return
-    if messagebox.askyesno('Confirmare','Ștergi înregistrarea selectată?'):self.conn.execute('DELETE FROM records WHERE id=?',(self.selected,));self.conn.commit();self.clear();self.refresh()
+        if not self.selected:messagebox.showinfo('Selectare','Selectează un rând din tabel.');return
+        if messagebox.askyesno('Confirmare','Ștergi înregistrarea selectată?'):self.conn.execute('DELETE FROM records WHERE id=?',(self.selected,));self.conn.commit();self.clear();self.refresh()
  def refresh(self):
     for i in self.tree.get_children():
         self.tree.delete(i)
