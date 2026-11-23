@@ -271,8 +271,8 @@ class App:
         if not self.selected:messagebox.showinfo('Selectare','Selectează un rând din tabel.');return
         if messagebox.askyesno('Confirmare','Ștergi înregistrarea selectată?'):self.conn.execute('DELETE FROM records WHERE id=?',(self.selected,));self.conn.commit();self.clear();self.refresh()
     def refresh(self):
-    for i in self.tree.get_children():
-        self.tree.delete(i)
+        for i in self.tree.get_children():
+            self.tree.delete(i)
 
     today=date.today()
     counts={'exp':0,'30':0,'60':0,'90':0,'incomplete':0,'all':0}
