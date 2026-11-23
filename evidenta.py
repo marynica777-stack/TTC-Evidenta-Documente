@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import sqlite3, csv, os, sys, tempfile
+from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
@@ -376,14 +377,17 @@ class App:
         folder = os.path.dirname(os.path.abspath(path))
         fd, tmp_path = tempfile.mkstemp(prefix='ttc_backup_', suffix='.db', dir=folder)
         os.close(fd)
-        with sqlite3.connect(tmp_path) as destinatie:
+        destinatie = sqlite3.connect(tmp_path)
+        try:
             self.conn.backup(destinatie)
             verificare = destinatie.execute('PRAGMA integrity_check').fetchone()[0]
             if verificare != 'ok':
                 raise ValueError('Copia bazei de date nu a trecut verificarea de integritate.')
+        finally:
+            destinatie.close()
         os.replace(tmp_path, path)
         tmp_path = None
-        messagebox.showinfo('Backup reușit', 'Copia de siguranță a fost salvată:\\n' + path)
+        messagebox.showinfo('Backup reușit', 'Copia de siguranță a fost salvată:\n' + path)
     except Exception as e:
         messagebox.showerror('Eroare backup', str(e))
     finally:
@@ -402,7 +406,8 @@ class App:
         return
     tmp_path = None
     try:
-        with sqlite3.connect('file:' + Path(path).resolve().as_posix() + '?mode=ro', uri=True) as sursa:
+        sursa = sqlite3.connect('file:' + Path(path).resolve().as_posix() + '?mode=ro', uri=True)
+        try:
             if sursa.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
                 raise ValueError('Fișierul selectat este deteriorat.')
             coloane = {r[1] for r in sursa.execute('PRAGMA table_info(records)')}
@@ -412,16 +417,21 @@ class App:
                 raise ValueError('Fișierul selectat nu este un backup TTC compatibil.')
             if not messagebox.askyesno(
                 'Confirmare restaurare',
-                'ATENȚIE: restaurarea va înlocui toate datele actuale cu cele din backup.\\n\\n'
-                'Ai salvat o copie a datelor actuale?\\n\\nContinui?'
+                'ATENȚIE: restaurarea va înlocui toate datele actuale cu cele din backup.\n\n'
+                'Ai salvat o copie a datelor actuale?\n\nContinui?'
             ):
                 return
             fd, tmp_path = tempfile.mkstemp(prefix='ttc_restore_', suffix='.db', dir=APP_DIR)
             os.close(fd)
-            with sqlite3.connect(tmp_path) as destinatie:
+            destinatie = sqlite3.connect(tmp_path)
+            try:
                 sursa.backup(destinatie)
                 if destinatie.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
                     raise ValueError('Backupul restaurat nu a trecut verificarea.')
+            finally:
+                destinatie.close()
+        finally:
+            sursa.close()
         self.conn.close()
         try:
             os.replace(tmp_path, DB)
