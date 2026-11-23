@@ -155,10 +155,21 @@ class App:
             elif nr>nr_nou:
                 break
     if self.selected:
-        self.conn.execute(
+            import json
+            date_vechi = self.conn.execute(
+                "SELECT data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,observatii FROM records WHERE id=?",
+                (self.selected,)
+            ).fetchone()
+
+            if date_vechi:
+                self.conn.execute(
+                    "INSERT INTO istoric_modificari (record_id, date_vechi) VALUES (?, ?)",
+                    (self.selected, json.dumps(date_vechi))
+                )
+            self.conn.execute(
             'UPDATE records SET data_inregistrarii=?,nume=?,prenume=?,telefon=?,serviciu=?,auto=?,efectuare=?,expirare=?,observatii=? WHERE id=?',
             (*vals,self.selected)
-        )
+            )
     else:
         self.conn.execute(
             'INSERT INTO records(nr_referinta,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,observatii) VALUES(?,?,?,?,?,?,?,?,?,?)',
