@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-import sqlite3, csv, os, sys
+import sqlite3, csv, os, sys, tempfile
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
@@ -97,7 +97,7 @@ class App:
         self.nume_entry=w
       w.grid(row=row,column=col+1,padx=4,pady=4,sticky='ew')
     buttons=ttk.Frame(form);buttons.grid(row=2,column=0,columnspan=10,pady=5)
-    for label,cmd in [('Adaugă / Salvează',self.save),('Șterge',self.delete),('UNDO',self.undo),('Curăță formular',self.clear),('Export Excel (CSV)',self.export)]:ttk.Button(buttons,text=label,command=cmd).pack(side='left',padx=5)
+    for label,cmd in [('Adaugă / Salvează',self.save),('Șterge',self.delete),('UNDO',self.undo),('Curăță formular',self.clear),('Export Excel (CSV)',self.export),('Backup date',self.backup_date),('Restaurare date',self.restaurare_date)]:ttk.Button(buttons,text=label,command=cmd).pack(side='left',padx=5)
     searchrow=ttk.Frame(self.root);searchrow.pack(fill='x',padx=10,pady=5)
     ttk.Label(searchrow,text='Caută:').pack(side='left');self.search=tk.StringVar();ttk.Entry(searchrow,textvariable=self.search,width=35).pack(side='left',padx=5);self.search.trace_add('write',lambda *_:self.refresh())
     ttk.Label(searchrow,text='Filtru serviciu:').pack(side='left',padx=(15,0));self.filter=tk.StringVar(value='Toate');cb=ttk.Combobox(searchrow,textvariable=self.filter,values=['Toate']+SERVICES,state='readonly',width=22);cb.pack(side='left',padx=5);cb.bind('<<ComboboxSelected>>',lambda e:self.refresh())
@@ -359,6 +359,84 @@ class App:
 
     if upcoming:
       messagebox.showwarning('TTC – Atenționare expirare document','\n\n'.join(upcoming))
+ def backup_date(self):
+    path = filedialog.asksaveasfilename(
+        title='Salvează copia de siguranță TTC',
+        defaultextension='.db',
+        initialfile='TTC_backup_' + date.today().strftime('%Y-%m-%d') + '.db',
+        filetypes=[('Bază de date TTC', '*.db')]
+    )
+    if not path:
+        return
+    if os.path.normcase(os.path.abspath(path)) == os.path.normcase(os.path.abspath(DB)):
+        messagebox.showerror('Backup', 'Alege altă locație decât baza de date activă.')
+        return
+    tmp_path = None
+    try:
+        folder = os.path.dirname(os.path.abspath(path))
+        fd, tmp_path = tempfile.mkstemp(prefix='ttc_backup_', suffix='.db', dir=folder)
+        os.close(fd)
+        with sqlite3.connect(tmp_path) as destinatie:
+            self.conn.backup(destinatie)
+            verificare = destinatie.execute('PRAGMA integrity_check').fetchone()[0]
+            if verificare != 'ok':
+                raise ValueError('Copia bazei de date nu a trecut verificarea de integritate.')
+        os.replace(tmp_path, path)
+        tmp_path = None
+        messagebox.showinfo('Backup reușit', 'Copia de siguranță a fost salvată:\\n' + path)
+    except Exception as e:
+        messagebox.showerror('Eroare backup', str(e))
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+ def restaurare_date(self):
+    path = filedialog.askopenfilename(
+        title='Alege copia de siguranță TTC',
+        filetypes=[('Bază de date TTC', '*.db'), ('Toate fișierele', '*.*')]
+    )
+    if not path:
+        return
+    if os.path.normcase(os.path.abspath(path)) == os.path.normcase(os.path.abspath(DB)):
+        messagebox.showerror('Restaurare', 'Selectează un fișier de backup, nu baza de date activă.')
+        return
+    tmp_path = None
+    try:
+        with sqlite3.connect('file:' + Path(path).resolve().as_posix() + '?mode=ro', uri=True) as sursa:
+            if sursa.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                raise ValueError('Fișierul selectat este deteriorat.')
+            coloane = {r[1] for r in sursa.execute('PRAGMA table_info(records)')}
+            necesare = {'id', 'data_inregistrarii', 'nume', 'prenume', 'telefon',
+                        'serviciu', 'auto', 'efectuare', 'expirare', 'nr_referinta', 'observatii'}
+            if not necesare.issubset(coloane):
+                raise ValueError('Fișierul selectat nu este un backup TTC compatibil.')
+            if not messagebox.askyesno(
+                'Confirmare restaurare',
+                'ATENȚIE: restaurarea va înlocui toate datele actuale cu cele din backup.\\n\\n'
+                'Ai salvat o copie a datelor actuale?\\n\\nContinui?'
+            ):
+                return
+            fd, tmp_path = tempfile.mkstemp(prefix='ttc_restore_', suffix='.db', dir=APP_DIR)
+            os.close(fd)
+            with sqlite3.connect(tmp_path) as destinatie:
+                sursa.backup(destinatie)
+                if destinatie.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                    raise ValueError('Backupul restaurat nu a trecut verificarea.')
+        self.conn.close()
+        try:
+            os.replace(tmp_path, DB)
+            tmp_path = None
+        finally:
+            self.conn = connect()
+        self.clear()
+        self.refresh()
+        messagebox.showinfo('Restaurare reușită', 'Datele au fost restaurate cu succes.')
+    except Exception as e:
+        messagebox.showerror('Eroare restaurare', str(e))
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
  def export(self):
     path=filedialog.asksaveasfilename(
         defaultextension='.xlsx',
