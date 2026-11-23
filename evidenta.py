@@ -227,120 +227,120 @@ class App:
     self.selected=int(s[0]);row=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,observatii FROM records WHERE id=?',(self.selected,)).fetchone()
     self.vars['ref'].set(str(self.conn.execute('SELECT nr_referinta FROM records WHERE id=?',(self.selected,)).fetchone()[0]))
     for k,v in zip(['data_inregistrarii','nume','prenume','telefon','serviciu','auto','efectuare','expirare','observatii'],row[1:]):self.vars[k].set(v or '')
-    def undo(self):
-        import json
+ def undo(self):
+     import json
 
-        istoric = self.conn.execute(
-            "SELECT id, record_id, date_vechi FROM istoric_modificari ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+     istoric = self.conn.execute(
+         "SELECT id, record_id, date_vechi FROM istoric_modificari ORDER BY id DESC LIMIT 1"
+     ).fetchone()
 
-        if not istoric:
-            messagebox.showinfo("UNDO", "Nu exista modificari de anulat.")
-            return
+     if not istoric:
+         messagebox.showinfo("UNDO", "Nu exista modificari de anulat.")
+         return
 
-        istoric_id, record_id, date_vechi = istoric
-        valori = json.loads(date_vechi)
+     istoric_id, record_id, date_vechi = istoric
+     valori = json.loads(date_vechi)
 
-        if not messagebox.askyesno(
-            "Confirmare UNDO",
-            "Doresti sa anulezi ultima modificare salvata?"
-        ):
-            return
+     if not messagebox.askyesno(
+         "Confirmare UNDO",
+         "Doresti sa anulezi ultima modificare salvata?"
+     ):
+         return
 
-        cursor = self.conn.execute(
-            """UPDATE records SET
-            data_inregistrarii=?, nume=?, prenume=?, telefon=?,
-            serviciu=?, auto=?, efectuare=?, expirare=?, observatii=?
-            WHERE id=?""",
-            (*valori, record_id)
-        )
+     cursor = self.conn.execute(
+         """UPDATE records SET
+         data_inregistrarii=?, nume=?, prenume=?, telefon=?,
+         serviciu=?, auto=?, efectuare=?, expirare=?, observatii=?
+         WHERE id=?""",
+         (*valori, record_id)
+     )
 
-        if cursor.rowcount == 0:
-            messagebox.showerror("UNDO", "Inregistrarea nu mai exista.")
-            return
+     if cursor.rowcount == 0:
+         messagebox.showerror("UNDO", "Inregistrarea nu mai exista.")
+         return
 
-        self.conn.execute(
-            "DELETE FROM istoric_modificari WHERE id=?",
-            (istoric_id,)
-        )
-        self.conn.commit()
-        self.clear()
-        self.refresh()
-        messagebox.showinfo("UNDO", "Modificarea a fost anulata cu succes.")
-    def delete(self):
-        if not self.selected:messagebox.showinfo('Selectare','Selectează un rând din tabel.');return
-        if messagebox.askyesno('Confirmare','Ștergi înregistrarea selectată?'):self.conn.execute('DELETE FROM records WHERE id=?',(self.selected,));self.conn.commit();self.clear();self.refresh()
-    def refresh(self):
-        for i in self.tree.get_children():
-            self.tree.delete(i)
+     self.conn.execute(
+         "DELETE FROM istoric_modificari WHERE id=?",
+         (istoric_id,)
+     )
+     self.conn.commit()
+     self.clear()
+     self.refresh()
+     messagebox.showinfo("UNDO", "Modificarea a fost anulata cu succes.")
+ def delete(self):
+     if not self.selected:messagebox.showinfo('Selectare','Selectează un rând din tabel.');return
+     if messagebox.askyesno('Confirmare','Ștergi înregistrarea selectată?'):self.conn.execute('DELETE FROM records WHERE id=?',(self.selected,));self.conn.commit();self.clear();self.refresh()
+ def refresh(self):
+     for i in self.tree.get_children():
+         self.tree.delete(i)
 
-    today=date.today()
-    counts={'exp':0,'30':0,'60':0,'90':0,'incomplete':0,'all':0}
-    q=self.search.get().lower()
-    fil=self.filter.get()
-    selected_status=self.filter_status.get()
+     today=date.today()
+     counts={'exp':0,'30':0,'60':0,'90':0,'incomplete':0,'all':0}
+     q=self.search.get().lower()
+     fil=self.filter.get()
+     selected_status=self.filter_status.get()
 
-    rows=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,nr_referinta,observatii FROM records ORDER BY nr_referinta').fetchall()
+     rows=self.conn.execute('SELECT id,data_inregistrarii,nume,prenume,telefon,serviciu,auto,efectuare,expirare,nr_referinta,observatii FROM records ORDER BY nr_referinta').fetchall()
 
-    for r in rows:
-      if r[8]:
-        try:
-          d=self.parsed(r[8])
-          delta=(d-today).days
-        except Exception:
-          delta=None
-      else:
-        delta=None
+     for r in rows:
+       if r[8]:
+         try:
+           d=self.parsed(r[8])
+           delta=(d-today).days
+         except Exception:
+           delta=None
+       else:
+         delta=None
 
-      if delta is None:
-        status='NECOMPLET'
-        tag=''
-        counts['incomplete']+=1
-      elif delta<0:
-        status='EXPIRAT'
-        tag='expired'
-        counts['exp']+=1
-      elif delta<=30:
-        status=f'Expiră în {delta} zile'
-        tag='soon'
-        counts['30']+=1
-      elif delta<=60:
-        status=f'Expiră în {delta} zile'
-        tag='later'
-        counts['60']+=1
-      elif delta<=90:
-        status=f'Expiră în {delta} zile'
-        tag='later'
-        counts['90']+=1
-      else:
-        status=f'{delta} zile'
-        tag=''
+       if delta is None:
+         status='NECOMPLET'
+         tag=''
+         counts['incomplete']+=1
+       elif delta<0:
+         status='EXPIRAT'
+         tag='expired'
+         counts['exp']+=1
+       elif delta<=30:
+         status=f'Expiră în {delta} zile'
+         tag='soon'
+         counts['30']+=1
+       elif delta<=60:
+         status=f'Expiră în {delta} zile'
+         tag='later'
+         counts['60']+=1
+       elif delta<=90:
+         status=f'Expiră în {delta} zile'
+         tag='later'
+         counts['90']+=1
+       else:
+         status=f'{delta} zile'
+         tag=''
 
-      counts['all']+=1
+       counts['all']+=1
 
-      searchable=' '.join(str(x or '') for x in r).lower()
+       searchable=' '.join(str(x or '') for x in r).lower()
 
-      if q and q not in searchable:
-        continue
-      if fil!='Toate' and r[5]!=fil:
-        continue
+       if q and q not in searchable:
+         continue
+       if fil!='Toate' and r[5]!=fil:
+         continue
 
-      if selected_status=='exp' and not (delta is not None and delta<0):
-        continue
-      if selected_status=='30' and not (delta is not None and 0<=delta<=30):
-        continue
-      if selected_status=='60' and not (delta is not None and 31<=delta<=60):
-        continue
-      if selected_status=='90' and not (delta is not None and 61<=delta<=90):
-        continue
-      if selected_status=='incomplete' and delta is not None:
-        continue
+       if selected_status=='exp' and not (delta is not None and delta<0):
+         continue
+       if selected_status=='30' and not (delta is not None and 0<=delta<=30):
+         continue
+       if selected_status=='60' and not (delta is not None and 31<=delta<=60):
+         continue
+       if selected_status=='90' and not (delta is not None and 61<=delta<=90):
+         continue
+       if selected_status=='incomplete' and delta is not None:
+         continue
 
-      self.tree.insert('', 'end',iid=str(r[0]),values=(r[9],*r[1:9],status,r[10] or ''),tags=(tag,) if tag else ())
+       self.tree.insert('', 'end',iid=str(r[0]),values=(r[9],*r[1:9],status,r[10] or ''),tags=(tag,) if tag else ())
 
-    for k,v in counts.items():
-      if k in self.statslabels:
-        self.statslabels[k].config(text=str(v))
+     for k,v in counts.items():
+       if k in self.statslabels:
+         self.statslabels[k].config(text=str(v))
  def alerts(self):
     upcoming=[]
 
